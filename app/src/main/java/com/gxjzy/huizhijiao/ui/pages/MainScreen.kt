@@ -3,8 +3,10 @@ package com.gxjzy.huizhijiao.ui.pages
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +64,9 @@ import coil3.compose.rememberAsyncImagePainter
 import java.io.File
 import android.net.Uri
 import kotlinx.coroutines.flow.distinctUntilChanged
+import com.gxjzy.huizhijiao.utils.UpdateChecker
+import com.gxjzy.huizhijiao.utils.UpdateResult
+import android.content.Intent
 
 @Composable
 fun MainScreen(
@@ -80,6 +85,7 @@ fun MainScreen(
     var currentTab by rememberSaveable { mutableIntStateOf(0) }
     var showExpiredDialog by remember { mutableStateOf(false) }
     var expiredEndDate by remember { mutableStateOf("") }
+    var updateResult by remember { mutableStateOf<UpdateResult?>(null) }
     val bgImage by prefs.backgroundImage.distinctUntilChanged().collectAsState(initial = null)
     val backdrop = rememberLayerBackdrop()
 
@@ -103,6 +109,7 @@ fun MainScreen(
                 showExpiredDialog = true
             }
         }
+        updateResult = UpdateChecker.checkForUpdate()
     }
 
     BackHandler(enabled = mainPagerState.selectedPage != 0) {
@@ -196,6 +203,28 @@ fun MainScreen(
                 Spacer(modifier = Modifier.height(20.dp))
                 Column(modifier = Modifier.fillMaxWidth()) {
                     AppButton(onClick = { showExpiredDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("我知道了") }
+                }
+            }
+
+            val currentUpdate = updateResult
+            OverlayDialog(
+                show = currentUpdate != null,
+                onDismissRequest = { updateResult = null },
+                title = "发现新版本 ${currentUpdate?.latestVersion}",
+            ) {
+                if (currentUpdate != null) {
+                    if (currentUpdate.releaseNotes.isNotEmpty()) {
+                        Text(currentUpdate.releaseNotes, modifier = Modifier.fillMaxWidth())
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AppButton(onClick = { updateResult = null }, modifier = Modifier.weight(1f)) { Text("稍后再说") }
+                        AppButton(onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(currentUpdate.downloadUrl))
+                            BRApp.instance.startActivity(intent)
+                            updateResult = null
+                        }, modifier = Modifier.weight(1f)) { Text("去更新") }
+                    }
                 }
             }
         }
