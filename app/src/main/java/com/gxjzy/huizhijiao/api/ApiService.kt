@@ -111,4 +111,10 @@ interface ApiService {
 
     @DELETE("api/admin/users/{id}/advanced-mode")
     suspend fun clearAdvancedMode(@Path("id") id: Long): Response<JsonObject>
+
+    @GET("api/announcements")
+    suspend fun getAnnouncements(): Response<JsonObject>
+
+    @POST("api/announcements/{id}/read")
+    suspend fun markAnnouncementRead(@Path("id") id: Long): Response<JsonObject>
 }

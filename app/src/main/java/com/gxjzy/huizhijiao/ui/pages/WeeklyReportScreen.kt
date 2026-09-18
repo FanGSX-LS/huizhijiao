@@ -128,9 +128,9 @@ fun WeeklyReportScreen(onBack: () -> Unit) {
                             submitting = true; statusMsg = ""
                             val w = filteredWeekData[selectedIdx]
                             try {
-                                val success = ApiClient.saveWeekly(content, "${w.week}", w.startDate, w.endDate, if (isDraft) "true" else "false", siteInstruction, contactTimes)
-                                statusMsg = if (success) "提交成功" else "提交失败"
-                                if (success) content = ""
+                                val result = ApiClient.saveWeekly(content, "${w.week}", w.startDate, w.endDate, if (isDraft) "true" else "false", siteInstruction, contactTimes)
+                                statusMsg = if (result.first) "提交成功" else "提交失败: ${result.second}"
+                                if (result.first) content = ""
                             } catch (_: Exception) { statusMsg = "网络错误" }
                             submitting = false
                         }

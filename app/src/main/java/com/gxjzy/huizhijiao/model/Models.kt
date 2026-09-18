@@ -268,3 +268,10 @@ data class SummaryItem(
     val isDraft: Boolean = true,
     val createTime: Long = 0
 )
+
+data class Announcement(
+    val id: Long = 0,
+    val title: String = "",
+    val content: String = "",
+    val createdAt: Long = 0
+)

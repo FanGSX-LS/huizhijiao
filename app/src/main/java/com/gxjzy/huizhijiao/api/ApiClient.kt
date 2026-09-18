@@ -282,16 +282,26 @@ object ApiClient {
         } catch (_: Exception) { emptyList() }
     }
 
-    suspend fun saveWeekly(content: String, week: String, weekStartDate: String, weekEndDate: String, isDraft: String, siteInstruction: String, contactTimes: String): Boolean {
+    suspend fun saveWeekly(content: String, week: String, weekStartDate: String, weekEndDate: String, isDraft: String, siteInstruction: String, contactTimes: String): Pair<Boolean, String> {
         val data = mapOf("content" to content, "week" to week, "weekStartDate" to weekStartDate, "weekEndDate" to weekEndDate, "isDraft" to isDraft, "siteInstruction" to siteInstruction, "contactTimes" to contactTimes, "attachIds" to "", "delAttachIds" to "")
-        val res = proxyCall("process/weekly-report/save", data) ?: return false
-        return try { safeBool(res.get("success")) } catch (_: Exception) { false }
+        val res = proxyCallWithError("process/weekly-report/save", data)
+        if (res.first == null) return Pair(false, res.second.ifEmpty { "网络错误" })
+        return try {
+            val success = safeBool(res.first!!.get("success"))
+            val msg = safeString(res.first!!.get("msg")).ifEmpty { if (success) "提交成功" else "提交失败" }
+            Pair(success, msg)
+        } catch (_: Exception) { Pair(false, "解析错误") }
     }
 
-    suspend fun saveMonthly(content: String, month: String, startDate: String, endDate: String, isDraft: String): Boolean {
+    suspend fun saveMonthly(content: String, month: String, startDate: String, endDate: String, isDraft: String): Pair<Boolean, String> {
         val data = mapOf("content" to content, "month" to month, "startDate" to startDate, "endDate" to endDate, "isDraft" to isDraft, "attachIds" to "", "delAttachIds" to "")
-        val res = proxyCall("process/month-summary/save", data) ?: return false
-        return try { safeBool(res.get("success")) } catch (_: Exception) { false }
+        val res = proxyCallWithError("process/month-summary/save", data)
+        if (res.first == null) return Pair(false, res.second.ifEmpty { "网络错误" })
+        return try {
+            val success = safeBool(res.first!!.get("success"))
+            val msg = safeString(res.first!!.get("msg")).ifEmpty { if (success) "提交成功" else "提交失败" }
+            Pair(success, msg)
+        } catch (_: Exception) { Pair(false, "解析错误") }
     }
 
     suspend fun doCheckin(presetData: PresetData, checkType: String): CheckinResult {
@@ -783,6 +793,34 @@ object ApiClient {
                 else "清除失败"
             } else "HTTP ${resp.code()}"
         } catch (e: Exception) { "网络错误: ${e.message}" }
+    }
+
+    suspend fun fetchUnreadAnnouncements(): List<Announcement> {
+        return try {
+            val resp = service.getAnnouncements()
+            if (resp.isSuccessful) {
+                val body = resp.body() ?: return emptyList()
+                if (safeBool(body.get("success"))) {
+                    val arr = body.getAsJsonArray("data") ?: return emptyList()
+                    arr.mapNotNull { elem ->
+                        val obj = elem.asJsonObject
+                        Announcement(
+                            id = safeLong(obj.get("id")),
+                            title = safeString(obj.get("title")),
+                            content = safeString(obj.get("content")),
+                            createdAt = safeLong(obj.get("createdAt"))
+                        )
+                    }
+                } else emptyList()
+            } else emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
+
+    suspend fun markAnnouncementRead(announcementId: Long): Boolean {
+        return try {
+            val resp = service.markAnnouncementRead(announcementId)
+            if (resp.isSuccessful) safeBool(resp.body()?.get("success")) else false
+        } catch (_: Exception) { false }
     }
 
     private fun safeString(element: com.google.gson.JsonElement?, default: String = ""): String {

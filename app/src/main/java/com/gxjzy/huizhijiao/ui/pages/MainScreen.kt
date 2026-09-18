@@ -66,6 +66,7 @@ import android.net.Uri
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.gxjzy.huizhijiao.utils.UpdateChecker
 import com.gxjzy.huizhijiao.utils.UpdateResult
+import com.gxjzy.huizhijiao.model.Announcement
 import android.content.Intent
 
 @Composable
@@ -86,6 +87,8 @@ fun MainScreen(
     var showExpiredDialog by remember { mutableStateOf(false) }
     var expiredEndDate by remember { mutableStateOf("") }
     var updateResult by remember { mutableStateOf<UpdateResult?>(null) }
+    var unreadAnnouncements by remember { mutableStateOf<List<Announcement>>(emptyList()) }
+    var currentAnnouncementIndex by remember { mutableIntStateOf(0) }
     val bgImage by prefs.backgroundImage.distinctUntilChanged().collectAsState(initial = null)
     val backdrop = rememberLayerBackdrop()
 
@@ -110,6 +113,11 @@ fun MainScreen(
             }
         }
         updateResult = UpdateChecker.checkForUpdate()
+        val announcements = ApiClient.fetchUnreadAnnouncements()
+        if (announcements.isNotEmpty()) {
+            unreadAnnouncements = announcements
+            currentAnnouncementIndex = 0
+        }
     }
 
     BackHandler(enabled = mainPagerState.selectedPage != 0) {
@@ -224,6 +232,32 @@ fun MainScreen(
                             BRApp.instance.startActivity(intent)
                             updateResult = null
                         }, modifier = Modifier.weight(1f)) { Text("去更新") }
+                    }
+                }
+            }
+
+            val currentAnnouncement = unreadAnnouncements.getOrNull(currentAnnouncementIndex)
+            OverlayDialog(
+                show = currentAnnouncement != null,
+                onDismissRequest = {},
+                title = currentAnnouncement?.title ?: "公告",
+            ) {
+                if (currentAnnouncement != null) {
+                    Text(currentAnnouncement.content, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        AppButton(onClick = {
+                            scope.launch {
+                                ApiClient.markAnnouncementRead(currentAnnouncement.id)
+                                val nextIndex = currentAnnouncementIndex + 1
+                                if (nextIndex < unreadAnnouncements.size) {
+                                    currentAnnouncementIndex = nextIndex
+                                } else {
+                                    unreadAnnouncements = emptyList()
+                                    currentAnnouncementIndex = 0
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text("确定") }
                     }
                 }
             }

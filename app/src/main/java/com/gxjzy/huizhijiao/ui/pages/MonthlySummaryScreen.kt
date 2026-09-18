@@ -122,9 +122,9 @@ fun MonthlySummaryScreen(onBack: () -> Unit) {
                             submitting = true; statusMsg = ""
                             val m = filteredMonthData[selectedIdx]
                             try {
-                                val success = ApiClient.saveMonthly(content, "${m.month}", m.startDate, m.endDate, if (isDraft) "true" else "false")
-                                statusMsg = if (success) "提交成功" else "提交失败"
-                                if (success) content = ""
+                                val result = ApiClient.saveMonthly(content, "${m.month}", m.startDate, m.endDate, if (isDraft) "true" else "false")
+                                statusMsg = if (result.first) "提交成功" else "提交失败: ${result.second}"
+                                if (result.first) content = ""
                             } catch (_: Exception) { statusMsg = "网络错误" }
                             submitting = false
                         }

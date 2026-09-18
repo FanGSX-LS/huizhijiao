@@ -221,7 +221,7 @@ fun TemplateScreen(onBack: () -> Unit) {
                                                 scope.launch {
                                                     publishingId = template.id
                                                     try {
-                                                        val success = if (tplType == "week") {
+                                                        val result = if (tplType == "week") {
                                                             val wItem = weekPeriods.find { it.week == periodNum }
                                                             if (wItem != null) {
                                                                 ApiClient.saveWeekly(
@@ -248,10 +248,10 @@ fun TemplateScreen(onBack: () -> Unit) {
                                                                 return@launch
                                                             }
                                                         }
-                                                        if (success) {
+                                                        if (result.first) {
                                                             android.widget.Toast.makeText(context, "发布成功", android.widget.Toast.LENGTH_SHORT).show()
                                                         } else {
-                                                            statusMsg = "发布失败"
+                                                            statusMsg = "发布失败: ${result.second}"
                                                         }
                                                     } catch (e: Exception) {
                                                         statusMsg = "发布失败: ${e.message}"
