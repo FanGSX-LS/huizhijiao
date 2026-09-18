@@ -130,7 +130,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}) {
                 ) { Text("退出登录", fontSize = 17.sp) }
 
                 Text(
-                    "2.0Beta",
+                    "2.1Beta",
                     fontSize = 14.sp, color = Color(0xFFCCCCCC),
                     modifier = Modifier.fillMaxWidth().clickable(indication = null, interactionSource = null) {
                         val now = System.currentTimeMillis()
