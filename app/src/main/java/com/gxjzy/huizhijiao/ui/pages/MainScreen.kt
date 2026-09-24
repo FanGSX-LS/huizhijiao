@@ -228,9 +228,9 @@ fun MainScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         AppButton(onClick = { updateResult = null }, modifier = Modifier.weight(1f)) { Text("稍后再说") }
                         AppButton(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(currentUpdate.downloadUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/FanGSX-LS/huizhijiao/releases"))
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             BRApp.instance.startActivity(intent)
-                            updateResult = null
                         }, modifier = Modifier.weight(1f)) { Text("去更新") }
                     }
                 }

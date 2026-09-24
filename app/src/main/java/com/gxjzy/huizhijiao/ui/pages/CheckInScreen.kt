@@ -568,8 +568,8 @@ fun CheckInScreen(onBack: () -> Unit) {
                                                         "label" to editLabel,
                                                         "scale" to (editMapScale.toDoubleOrNull() ?: 0.0),
                                                         "mapType" to editMapType,
-                                                        "isAbnormal" to editIsAbnormal,
-                                                        "isEvection" to editIsEvection
+                                                        "isAbnormal" to if (editIsAbnormal) 1 else 0,
+                                                        "isEvection" to if (editIsEvection) 1 else 0
                                                     )
                                                 )
                                                 val json = com.gxjzy.huizhijiao.api.ApiClient.gson.toJson(data)

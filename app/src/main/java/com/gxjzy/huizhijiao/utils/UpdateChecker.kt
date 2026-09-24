@@ -67,7 +67,7 @@ object UpdateChecker {
             if (rv > lv) return true
             if (rv < lv) return false
         }
-        return r > l
+        return false
     }
 }
 
