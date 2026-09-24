@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private var baseUrl = "http://118.178.139.103:8000/"
+    private var baseUrl = "http://lt.gecho.cn:8011/"
     private var token: String? = null
     private var cachedUser: UserInfo? = null
     var expiredDialogShownThisSession = false

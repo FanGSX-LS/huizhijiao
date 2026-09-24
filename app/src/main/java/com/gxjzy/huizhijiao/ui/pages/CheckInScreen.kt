@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -20,6 +21,7 @@ import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +34,8 @@ import com.gxjzy.huizhijiao.model.CheckinResult
 import com.gxjzy.huizhijiao.model.PresetData
 import com.gxjzy.huizhijiao.model.PresetItem
 import com.gxjzy.huizhijiao.map.LocationHelper
+import com.gxjzy.huizhijiao.map.CoordTransform
+import com.gxjzy.huizhijiao.ui.components.AmapView
 import com.gxjzy.huizhijiao.ui.components.AppButton
 import com.gxjzy.huizhijiao.ui.components.AppOutlinedButton
 import com.gxjzy.huizhijiao.ui.components.AppSwitch
@@ -85,6 +89,8 @@ fun CheckInScreen(onBack: () -> Unit) {
     var editMapType by remember { mutableStateOf("") }
     var editIsAbnormal by remember { mutableStateOf(false) }
     var editIsEvection by remember { mutableStateOf(false) }
+    var mapGcjLng by remember { mutableStateOf(0.0) }
+    var mapGcjLat by remember { mutableStateOf(0.0) }
 
     val context = LocalContext.current
 
@@ -98,6 +104,9 @@ fun CheckInScreen(onBack: () -> Unit) {
                 label = result.address
                 mapScale = "16"
                 mapType = "baidu"
+                val gcj = CoordTransform.bd09ToGcj02(result.longitude, result.latitude)
+                mapGcjLng = gcj[0]
+                mapGcjLat = gcj[1]
                 Toast.makeText(context, "定位成功", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, result.errorMsg, Toast.LENGTH_SHORT).show()
@@ -131,6 +140,9 @@ fun CheckInScreen(onBack: () -> Unit) {
                 mapType = d.mapType
                 isAbnormal = d.isAbnormal
                 isEvection = d.isEvection
+                val gcj = CoordTransform.bd09ToGcj02(d.locationX, d.locationY)
+                mapGcjLng = gcj[0]
+                mapGcjLat = gcj[1]
             }
         } catch (_: Exception) {}
     }
@@ -177,6 +189,9 @@ fun CheckInScreen(onBack: () -> Unit) {
                                                 mapType = d.mapType
                                                 isAbnormal = d.isAbnormal
                                                 isEvection = d.isEvection
+                                                val gcj = CoordTransform.bd09ToGcj02(d.locationX, d.locationY)
+                                                mapGcjLng = gcj[0]
+                                                mapGcjLat = gcj[1]
                                                 Toast.makeText(context, "已填入: ${presets[index].name}", Toast.LENGTH_SHORT).show()
                                             }
                                         )
@@ -241,6 +256,26 @@ fun CheckInScreen(onBack: () -> Unit) {
                             enabled = !locating
                         ) {
                             Text(if (locating) "定位中..." else "获取当前位置", fontSize = 15.sp)
+                        }
+
+                        if (mapGcjLng != 0.0 || mapGcjLat != 0.0) {
+                            AmapView(
+                                longitude = mapGcjLng,
+                                latitude = mapGcjLat,
+                                label = label,
+                                mode = "pick",
+                                onLocationPicked = { gcjLng, gcjLat, address ->
+                                    val bd = CoordTransform.gcj02ToBd09(gcjLng, gcjLat)
+                                    locationX = bd[0].toString()
+                                    locationY = bd[1].toString()
+                                    if (address.isNotEmpty()) label = address
+                                    mapScale = "16"
+                                    mapType = "baidu"
+                                    mapGcjLng = gcjLng
+                                    mapGcjLat = gcjLat
+                                },
+                                modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp))
+                            )
                         }
 
                         AppTextField(
@@ -568,8 +603,8 @@ fun CheckInScreen(onBack: () -> Unit) {
                                                         "label" to editLabel,
                                                         "scale" to (editMapScale.toDoubleOrNull() ?: 0.0),
                                                         "mapType" to editMapType,
-                                                        "isAbnormal" to editIsAbnormal,
-                                                        "isEvection" to editIsEvection
+                                                        "isAbnormal" to if (editIsAbnormal) 1 else 0,
+                                                        "isEvection" to if (editIsEvection) 1 else 0
                                                     )
                                                 )
                                                 val json = com.gxjzy.huizhijiao.api.ApiClient.gson.toJson(data)

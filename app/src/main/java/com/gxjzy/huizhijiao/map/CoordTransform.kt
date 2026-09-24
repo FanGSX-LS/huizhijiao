@@ -55,6 +55,16 @@ object CoordTransform {
         return doubleArrayOf(bdLng, bdLat)
     }
 
+    fun bd09ToGcj02(bdLng: Double, bdLat: Double): DoubleArray {
+        val x = bdLng - 0.0065
+        val y = bdLat - 0.006
+        val z = sqrt(x * x + y * y) - 0.00002 * sin(y * X_PI)
+        val theta = atan2(y, x) - 0.000003 * cos(x * X_PI)
+        val gcjLng = z * cos(theta)
+        val gcjLat = z * sin(theta)
+        return doubleArrayOf(gcjLng, gcjLat)
+    }
+
     fun wgs84ToBd09(wgsLng: Double, wgsLat: Double): DoubleArray {
         val gcj = wgs84ToGcj02(wgsLng, wgsLat)
         return gcj02ToBd09(gcj[0], gcj[1])

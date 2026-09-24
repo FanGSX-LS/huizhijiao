@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="https://webapi.amap.com/maps?v=2.0&key=42e40e2f23dff717d37621e46933147b">
+<style>
+*{margin:0;padding:0}
+html,body,#mapContainer{width:100%;height:100%;overflow:hidden;background:{{BG_COLOR}}}
+#loading{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:{{BG_COLOR}};color:#888;font-size:14px;z-index:999}
+</style>
+<script>
+  window.onerror = function(msg, url, line, col, err) {
+    console.error('window.onerror: ' + msg + ' (line ' + line + ')');
+  };
+</script>
+</head>
+<body>
+<div id="mapContainer"></div>
+<div id="loading">地图加载中...</div>
+<script src="https://webapi.amap.com/maps?v=2.0&key=42e40e2f23dff717d37621e46933147b" onerror="console.error('AMAP SCRIPT LOAD FAILED');"></script>
+<script>
+  var pickMode = {{PICK_MODE}};
+  var map = null, geocoder = null, currentMarker = null, markers = [];
+  var pendingCalls = [];
+
+  function notifyReady() {
+    if (window.Android && window.Android.onMapReady) window.Android.onMapReady();
+    while (pendingCalls.length > 0) { pendingCalls.shift()(); }
+  }
+
+  function setMapStyle(style) {
+    if (map) { map.setMapStyle(style); console.log('map style -> ' + style); }
+  }
+
+  function initMap() {
+    if (map) return;
+    try {
+      if (typeof AMap === 'undefined') {
+        console.error('initMap aborted: AMap is undefined (script blocked)');
+        document.getElementById('loading').textContent = '地图脚本加载失败';
+        return;
+      }
+      map = new AMap.Map('mapContainer', {
+        zoom: 16,
+        center: [116.397428, 39.90923],
+        mapStyle: '{{MAP_STYLE}}',
+        viewMode: '2D',
+        resizeEnable: true
+      });
+
+      map.on('complete', function() {
+        console.log('map complete');
+        document.getElementById('loading').style.display = 'none';
+        notifyReady();
+      });
+
+      if (pickMode) {
+        map.on('click', function(e) {
+          var lng = e.lnglat.getLng();
+          var lat = e.lnglat.getLat();
+          setMarker(lng, lat, '');
+          if (geocoder) {
+            geocoder.getAddress([lng, lat], function(status, result) {
+              var addr = '';
+              if (status === 'complete' && result.regeocode) addr = result.regeocode.formattedAddress || '';
+              if (window.Android && window.Android.onLocationPicked) window.Android.onLocationPicked(String(lng), String(lat), addr);
+            });
+          } else {
+            if (window.Android && window.Android.onLocationPicked) window.Android.onLocationPicked(String(lng), String(lat), '');
+          }
+        });
+      }
+
+      AMap.plugin('AMap.Geocoder', function() {
+        geocoder = new AMap.Geocoder({ radius: 1000, extensions: 'base' });
+      });
+    } catch(e) {
+      console.error('initMap error: ' + e.message);
+      document.getElementById('loading').textContent = '地图初始化失败: ' + e.message;
+    }
+  }
+
+  function setMarker(lng, lat, label) {
+    if (!map) { pendingCalls.push(function() { setMarker(lng, lat, label); }); return; }
+    if (pickMode) {
+      if (currentMarker) {
+        currentMarker.setPosition([lng, lat]);
+        if (label) currentMarker.setLabel({ content: label, direction: 'top' });
+      } else {
+        currentMarker = new AMap.Marker({
+          position: [lng, lat],
+          label: label ? { content: label, direction: 'top' } : undefined,
+          map: map
+        });
+      }
+      map.setCenter([lng, lat]);
+    } else {
+      var m = new AMap.Marker({
+        position: [lng, lat],
+        label: label ? { content: label, direction: 'top' } : undefined,
+        map: map
+      });
+      markers.push(m);
+      if (markers.length === 1) map.setCenter([lng, lat]);
+      else map.setFitView(markers);
+    }
+  }
+
+  function clearMarkers() {
+    markers.forEach(function(m) { m.setMap(null); });
+    markers = [];
+    if (currentMarker) { currentMarker.setMap(null); currentMarker = null; }
+  }
+
+  initMap();
+</script>
+</body>
+</html>

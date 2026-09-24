@@ -37,12 +37,15 @@ import com.gxjzy.huizhijiao.ui.components.AppAlertDialog
 import com.gxjzy.huizhijiao.ui.components.AppTextButton
 import com.gxjzy.huizhijiao.ui.components.AppLinearProgressIndicator
 import com.gxjzy.huizhijiao.ui.components.GlassCard
+import com.gxjzy.huizhijiao.ui.components.AmapView
 import com.gxjzy.huizhijiao.ui.components.appOverScrollVertical
+import com.gxjzy.huizhijiao.map.CoordTransform
 import com.gxjzy.huizhijiao.ui.theme.*
 import com.gxjzy.huizhijiao.R
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import java.util.*
 
 @Composable
@@ -358,49 +361,71 @@ private fun CalendarCard(calYear: Int, calMonth: Int, checkedDays: Set<Int>, onM
 
 @Composable
 private fun DayDetailSheet(show: Boolean, month: Int, day: Int, records: List<CheckinRecord>, onDismiss: () -> Unit) {
-    AppAlertDialog(
+    val validRecords = records.filter { 
+        it.locationX.toDoubleOrNull()?.let { x -> x != 0.0 } == true && 
+        it.locationY.toDoubleOrNull()?.let { y -> y != 0.0 } == true 
+    }
+    val firstRecord = validRecords.firstOrNull()
+    val gcjCoord = firstRecord?.let {
+        val bdLng = it.locationX.toDoubleOrNull() ?: 0.0
+        val bdLat = it.locationY.toDoubleOrNull() ?: 0.0
+        CoordTransform.bd09ToGcj02(bdLng, bdLat)
+    }
+
+    OverlayBottomSheet(
         show = show,
         onDismissRequest = onDismiss,
         title = "${month}月${day}日 签到记录",
-        text = {
+    ) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (gcjCoord != null) {
+                AmapView(
+                    longitude = gcjCoord[0],
+                    latitude = gcjCoord[1],
+                    label = firstRecord.label,
+                    mode = "show",
+                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp))
+                )
+            }
             if (records.isEmpty()) {
                 Text("暂无记录", fontSize = 15.sp, color = appOnSurfaceVariant())
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    records.forEach { record ->
-                        Column(
-                            modifier = Modifier.fillMaxWidth().background(appSurfaceVariant(), RoundedCornerShape(12.dp)).padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                val typeLabel = when {
-                                    record.isAbnormal -> "异常"
-                                    record.isEvection -> "出差"
-                                    record.isReissue -> "补签"
-                                    else -> if (record.checkType.equals("CHECKIN", ignoreCase = true)) "签到" else "签退"
-                                }
-                                val typeColor = when {
-                                    record.isAbnormal -> appError()
-                                    record.isEvection -> WarningOrange
-                                    else -> appPrimary()
-                                }
-                                Text(typeLabel, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium, modifier = Modifier.background(typeColor, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
-                                Text(formatTime(record.createTime), fontSize = 14.sp, color = appOnSurface(), modifier = Modifier.padding(start = 12.dp))
-                                if (!record.status) {
-                                    Text("异常", fontSize = 12.sp, color = appError(), modifier = Modifier.padding(start = 8.dp))
-                                }
+                records.forEach { record ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth().background(appSurfaceVariant(), RoundedCornerShape(12.dp)).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            val typeLabel = when {
+                                record.isAbnormal -> "异常"
+                                record.isEvection -> "出差"
+                                record.isReissue -> "补签"
+                                else -> if (record.checkType.equals("CHECKIN", ignoreCase = true)) "签到" else "签退"
                             }
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Text("地点", fontSize = 13.sp, color = appOnSurfaceVariant(), modifier = Modifier.width(36.dp))
-                                Text(if (record.label.isNotEmpty()) record.label else "-", fontSize = 13.sp, color = appOnSurface().copy(alpha = 0.7f), modifier = Modifier.weight(1f))
+                            val typeColor = when {
+                                record.isAbnormal -> appError()
+                                record.isEvection -> WarningOrange
+                                else -> appPrimary()
                             }
+                            Text(typeLabel, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium, modifier = Modifier.background(typeColor, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+                            Text(formatTime(record.createTime), fontSize = 14.sp, color = appOnSurface(), modifier = Modifier.padding(start = 12.dp))
+                            if (!record.status) {
+                                Text("异常", fontSize = 12.sp, color = appError(), modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("地点", fontSize = 13.sp, color = appOnSurfaceVariant(), modifier = Modifier.width(36.dp))
+                            Text(if (record.label.isNotEmpty()) record.label else "-", fontSize = 13.sp, color = appOnSurface().copy(alpha = 0.7f), modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
-        },
-        confirmButton = { AppTextButton(text = "关闭", modifier = Modifier.fillMaxWidth(), onClick = onDismiss) }
-    )
+            AppTextButton(text = "关闭", modifier = Modifier.fillMaxWidth(), onClick = onDismiss)
+        }
+    }
 }
 
 @Composable

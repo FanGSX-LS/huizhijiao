@@ -39,6 +39,8 @@ import com.gxjzy.huizhijiao.model.PresetItem
 import com.gxjzy.huizhijiao.model.CheckinResult
 import com.gxjzy.huizhijiao.model.UserInfo
 import com.gxjzy.huizhijiao.map.LocationHelper
+import com.gxjzy.huizhijiao.map.CoordTransform
+import com.gxjzy.huizhijiao.ui.components.AmapView
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
@@ -130,6 +132,8 @@ private fun CheckInContent() {
     var editMapType by remember { mutableStateOf("") }
     var editIsAbnormal by remember { mutableStateOf(false) }
     var editIsEvection by remember { mutableStateOf(false) }
+    var mapGcjLng by remember { mutableStateOf(0.0) }
+    var mapGcjLat by remember { mutableStateOf(0.0) }
 
     val context = LocalContext.current
     val locationLauncher = rememberLauncherForActivityResult(
@@ -148,6 +152,11 @@ private fun CheckInContent() {
                     label = result.address
                     mapScale = "16"
                     mapType = "Baidu"
+                    val bdLng = result.longitude.toDoubleOrNull() ?: 0.0
+                    val bdLat = result.latitude.toDoubleOrNull() ?: 0.0
+                    val gcj = CoordTransform.bd09ToGcj02(bdLng, bdLat)
+                    mapGcjLng = gcj[0]
+                    mapGcjLat = gcj[1]
                     Toast.makeText(context, "定位成功", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, e.message ?: "定位失败", Toast.LENGTH_SHORT).show()
@@ -174,6 +183,9 @@ private fun CheckInContent() {
             mapType = d.mapType
             isAbnormal = d.isAbnormal
             isEvection = d.isEvection
+            val gcj = CoordTransform.bd09ToGcj02(d.locationX, d.locationY)
+            mapGcjLng = gcj[0]
+            mapGcjLat = gcj[1]
         }
     }
 
@@ -204,6 +216,9 @@ private fun CheckInContent() {
                                         mapType = d.mapType
                                         isAbnormal = d.isAbnormal
                                         isEvection = d.isEvection
+                                        val gcj = CoordTransform.bd09ToGcj02(d.locationX, d.locationY)
+                                        mapGcjLng = gcj[0]
+                                        mapGcjLat = gcj[1]
                                         Toast.makeText(context, "已填入: ${presets[index].name}", Toast.LENGTH_SHORT).show()
                                     }
                                 )
@@ -260,6 +275,26 @@ private fun CheckInContent() {
                     containerColor = appPrimary(),
                     enabled = !locating
                 ) { Text(if (locating) "定位中..." else "获取当前位置", fontSize = 15.sp) }
+
+                if (mapGcjLng != 0.0 || mapGcjLat != 0.0) {
+                    AmapView(
+                        longitude = mapGcjLng,
+                        latitude = mapGcjLat,
+                        label = label,
+                        mode = "pick",
+                        onLocationPicked = { gcjLng, gcjLat, address ->
+                            val bd = CoordTransform.gcj02ToBd09(gcjLng, gcjLat)
+                            locationX = bd[0].toString()
+                            locationY = bd[1].toString()
+                            if (address.isNotEmpty()) label = address
+                            mapScale = "16"
+                            mapType = "Baidu"
+                            mapGcjLng = gcjLng
+                            mapGcjLat = gcjLat
+                        },
+                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp))
+                    )
+                }
 
                 AppTextField(
                     value = label,
@@ -545,8 +580,8 @@ private fun CheckInContent() {
                                         "label" to editLabel,
                                         "scale" to (editMapScale.toDoubleOrNull() ?: 0.0),
                                         "mapType" to editMapType,
-                                        "isAbnormal" to editIsAbnormal,
-                                        "isEvection" to editIsEvection
+                                        "isAbnormal" to if (editIsAbnormal) 1 else 0,
+                                        "isEvection" to if (editIsEvection) 1 else 0
                                     )
                                 )
                                 val json = com.gxjzy.huizhijiao.api.ApiClient.gson.toJson(data)
